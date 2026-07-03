@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>学生管理系统（静态JS版）</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 10px;
+            font-family: "Microsoft Yahei";
+        }
+        .container { max-width: 900px; margin: 30px auto; }
+        .hidden { display: none; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        td, th { border: 1px solid #999; padding: 8px 12px; }
+        input { padding: 6px; width: 300px; }
+        button { padding: 6px 16px; cursor: pointer; }
+        .tip { color: red; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 登录页 -->
+    <div id="loginPage">
+        <h2>登录</h2>
+        <p class="tip" id="loginTip"></p>
+        <div>用户名：<input type="text" id="loginUser"></div>
+        <div>密码：<input type="password" id="loginPwd"></div>
+        <button onclick="login()">登录</button>
+        <button onclick="showRegister()">去注册</button>
+    </div>
+
+    <!-- 注册页 -->
+    <div id="registerPage" class="hidden">
+        <h2>注册账号</h2>
+        <p class="tip" id="regTip"></p>
+        <div>用户名：<input type="text" id="regUser"></div>
+        <div>密码：<input type="password" id="regPwd"></div>
+        <button onclick="register()">注册</button>
+        <button onclick="showLogin()">返回登录</button>
+    </div>
+
+    <!-- 首页/学生列表 -->
+    <div id="dashboardPage" class="hidden">
+        <h2>学生成绩管理</h2>
+        <button onclick="showAdd()">新增学生</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>姓名</th>
+                    <th>学号</th>
+                    <th>分数</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="stuTable"></tbody>
+        </table>
+    </div>
+
+    <!-- 新增学生弹窗 -->
+    <div id="addPage" class="hidden">
+        <h3>新增学生</h3>
+        <div>姓名：<input type="text" id="addName"></div>
+        <div>学号：<input type="text" id="addId"></div>
+        <div>分数：<input type="number" id="addScore"></div>
+        <button onclick="addStudent()">提交</button>
+        <button onclick="backDash()">取消</button>
+    </div>
+
+    <!-- 编辑学生弹窗 -->
+    <div id="editPage" class="hidden">
+        <h3>编辑学生</h3>
+        <input type="hidden" id="editSid">
+        <div>姓名：<input type="text" id="editName"></div>
+        <div>学号：<input type="text" id="editStuId"></div>
+        <div>分数：<input type="number" id="editScore"></div>
+        <button onclick="saveEdit()">保存修改</button>
+        <button onclick="backDash()">取消</button>
+    </div>
+</div>
+
+<script>
+// 模拟数据库
+let userList = [];
+let studentList = [
+    { id:1, name:"张三", student_id:"2025001", score:92.5 },
+    { id:2, name:"李四", student_id:"2025002", score:85.0 },
+    { id:3, name:"王五", student_id:"2025003", score:78.0 },
+    { id:4, name:"赵六", student_id:"2025004", score:96.0 }
+];
+let currentEditId = null;
+
+// 页面切换
+function hideAll(){
+    document.getElementById("loginPage").classList.add("hidden");
+    document.getElementById("registerPage").classList.add("hidden");
+    document.getElementById("dashboardPage").classList.add("hidden");
+    document.getElementById("addPage").classList.add("hidden");
+    document.getElementById("editPage").classList.add("hidden");
+}
+function showLogin(){ hideAll(); document.getElementById("loginPage").classList.remove("hidden"); }
+function showRegister(){ hideAll(); document.getElementById("registerPage").classList.remove("hidden"); }
+function showDash(){ hideAll(); document.getElementById("dashboardPage").classList.remove("hidden"); renderTable(); }
+function showAdd(){ hideAll(); document.getElementById("addPage").classList.remove("hidden"); }
+function backDash(){ showDash(); }
+
+// 注册
+function register(){
+    let un = document.getElementById("regUser").value.trim();
+    let pw = document.getElementById("regPwd").value.trim();
+    let tip = document.getElementById("regTip");
+    if(!un || !pw){
+        tip.innerText = "用户名密码不能为空";
+        return;
+    }
+    let exist = userList.find(u=>u.username === un);
+    if(exist){
+        tip.innerText = "用户名已存在";
+        return;
+    }
+    userList.push({username:un, password:pw});
+    tip.innerText = "";
+    showLogin();
+}
+
+// 登录
+function login(){
+    let un = document.getElementById("loginUser").value.trim();
+    let pw = document.getElementById("loginPwd").value.trim();
+    let tip = document.getElementById("loginTip");
+    let user = userList.find(u=>u.username===un && u.password===pw);
+    if(user){
+        tip.innerText = "";
+        showDash();
+    }else{
+        tip.innerText = "用户名或密码错误";
+    }
+}
+
+// 渲染学生表格
+function renderTable(){
+    let tb = document.getElementById("stuTable");
+    tb.innerHTML = "";
+    studentList.forEach(s=>{
+        let tr = document.createElement("tr");
+        tr.innerHTML = `
+            <td>${s.id}</td>
+            <td>${s.name}</td>
+            <td>${s.student_id}</td>
+            <td>${s.score}</td>
+            <td>
+                <button onclick="openEdit(${s.id})">编辑</button>
+                <button onclick="delStu(${s.id})">删除</button>
+            </td>
+        `;
+        tb.appendChild(tr);
+    })
+}
+
+// 新增学生
+function addStudent(){
+    let name = document.getElementById("addName").value.trim();
+    let sid = document.getElementById("addId").value.trim();
+    let score = parseFloat(document.getElementById("addScore").value);
+    if(!name || !sid || isNaN(score)) return;
+    let newId = studentList.length>0 ? Math.max(...studentList.map(i=>i.id))+1 : 1;
+    studentList.push({
+        id:newId,
+        name:name,
+        student_id:sid,
+        score:score
+    });
+    backDash();
+}
+
+// 打开编辑
+function openEdit(id){
+    hideAll();
+    document.getElementById("editPage").classList.remove("hidden");
+    let s = studentList.find(item=>item.id === id);
+    currentEditId = id;
+    document.getElementById("editSid").value = id;
+    document.getElementById("editName").value = s.name;
+    document.getElementById("editStuId").value = s.student_id;
+    document.getElementById("editScore").value = s.score;
+}
+
+// 保存编辑
+function saveEdit(){
+    let s = studentList.find(item=>item.id === currentEditId);
+    s.name = document.getElementById("editName").value.trim();
+    s.student_id = document.getElementById("editStuId").value.trim();
+    s.score = parseFloat(document.getElementById("editScore").value);
+    backDash();
+}
+
+// 删除学生
+function delStu(id){
+    studentList = studentList.filter(item=>item.id !== id);
+    renderTable();
+}
+
+// 初始化打开登录页
+showLogin();
+</script>
+</body>
+</html>
